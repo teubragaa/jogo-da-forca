@@ -168,7 +168,6 @@ public class JogoForcaServerImpl extends UnicastRemoteObject implements JogoForc
         todas.addAll(letrasErradas);
         return todas.toString();
     }
-
     private String desenharForca() {
         switch (vidasRestantes) {
             case 6: return " +---+\n |   |\n     |\n     |\n     |\n=====";
