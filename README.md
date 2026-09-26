@@ -7,7 +7,7 @@ Aplicação de jogo multiplayer em grupo desenvolvida em **Java** utilizando a a
 
 ---
 
-## 📌 Origem do Projeto e Reutilização de Arquitetura
+##  Origem do Projeto e Reutilização de Arquitetura
 
 Este projeto foi construído como evolução direta do **`projeto-chat`** (aplicação de chat em tempo real via Java RMI).
 
@@ -15,7 +15,7 @@ A infraestrutura de comunicação em rede, o gerenciamento de concorrência com 
 
 ---
 
-## 🚀 Funcionalidades
+##  Funcionalidades
 
 - **Conexão Dinâmica via LAN:** Suporte à configuração do endereço IP do servidor para execuções na mesma rede local ou em `localhost`.
 - **Modo Colaborativo Multiplayer:** Todos os participantes conectados na sala jogam juntos na mesma partida.
@@ -25,22 +25,7 @@ A infraestrutura de comunicação em rede, o gerenciamento de concorrência com 
 
 ---
 
-## 📐 Arquitetura e Estrutura de Classes
-
-A arquitetura mantém o padrão RMI bidirecional, derivado do `projeto-chat`:
-
-| Classe do `projeto-chat` | Nova Classe (`jogo-forca`) | Função na Arquitetura |
-| :--- | :--- | :--- |
-| `ChatServerInterface.java` | `JogoForcaServerInterface.java` | Contrato remoto do servidor (`registrarJogador`, `enviarPalpite`). |
-| `ChatServerImpl.java` | `JogoForcaServerImpl.java` | Gerencia conexões e contém a lógica do jogo (vidas, palavra e broadcast). |
-| `ChatClientInterface.java` | `JogoForcaClientInterface.java` | Contrato remoto de Callback no cliente (`receberAtualizacaoJogo`). |
-| `ChatClientImpl.java` | `JogoForcaClientImpl.java` | Recebe as atualizações do estado do jogo e renderiza no terminal. |
-| `Main.java` | `MainServer.java` | Inicializa o registro RMI (`LocateRegistry`) na porta `1099`. |
-| `ClientMain.java` | `MainClient.java` | Interface CLI do jogador para conectar ao IP e enviar palpites. |
-
----
-
-## 🛠️ Tecnologias Utilizadas
+## Tecnologias Utilizadas
 
 - **Linguagem:** Java (JDK 17+)
 - **Comunicação Distribuída:** Java RMI (`java.rmi.*`)
@@ -48,42 +33,23 @@ A arquitetura mantém o padrão RMI bidirecional, derivado do `projeto-chat`:
 
 ---
 
-## 🛠️ Como Executar o Projeto
+##  Arquitetura e Estrutura de Classes
 
-### Pré-requisitos
-- **Java Development Kit (JDK 17 ou superior)** instalado.
-- Dispositivos conectados na mesma rede local (LAN).
+O projeto foi estruturado seguindo uma arquitetura em camadas simples (MVC/Layered) sobre o protocolo **Java RMI (Remote Method Invocation)**, separando a lógica de negócio, a infraestrutura de rede e a apresentação no terminal.
 
----
-
-### Passo 1: Executar o Servidor (`MainServer.java`)
-
-1. Execute a classe `MainServer.java`.
-2. Informe o **IP da máquina do servidor na rede local** (ou aperte `Enter` para `localhost`).
-3. O serviço RMI será publicado na porta **1099**.
-
-> ⚠️ **Nota:** Certifique-se de que a porta `1099` esteja liberada no Firewall do sistema operacional da máquina do servidor.
-
----
-
-### Passo 2: Executar os Clientes (`MainClient.java`)
-
-Nas máquinas dos jogadores:
-
-1. Execute a classe `MainClient.java`.
-2. Digite o **IP do servidor** (ex: `10.18.5.XX` ou `localhost`).
-3. Digite o seu **nome de jogador**.
-4. Envie palpites digitando uma letra por vez no terminal e acompanhe a evolução do jogo em tempo real!
-
----
-
-## 📂 Estrutura do Repositório
+###  Estrutura de Pacotes
 
 ```text
 src/main/java/org/example/
-├── JogoForcaClientImpl.java       # Implementação do Callback / Exibição ASCII
-├── JogoForcaClientInterface.java  # Interface Remota do Cliente (Callback)
-├── JogoForcaServerImpl.java       # Servidor RMI + Regras do Jogo da Forca
-├── JogoForcaServerInterface.java  # Interface Remota do Servidor
-├── MainClient.java                # Ponto de Entrada CLI do Jogador
-└── MainServer.java                # Ponto de Entrada e Registro RMI
+├── model/
+│   └── JogoForca.java          # Regras de negócio, turnos, palavra e vidas
+├── rmi/
+│   ├── JogoForcaClientInterface.java # Contrato RMI para callbacks no cliente
+│   ├── JogoForcaClientImpl.java      # Implementação do callback de recebimento
+│   ├── JogoForcaServerInterface.java # Contrato RMI para ações do servidor
+│   └── JogoForcaServerImpl.java      # Servidor RMI e orquestrador de broadcast
+├── client/
+│   ├── ClientMain.java         # Ponto de entrada CLI do jogador
+│   └── ViewConsole.java        # Formatação e desenho ASCII da forca
+└── server/
+    └── ServerMain.java         # Ponto de entrada e registro RMI Registry (1099)
