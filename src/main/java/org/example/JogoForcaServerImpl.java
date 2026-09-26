@@ -8,6 +8,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class JogoForcaServerImpl extends UnicastRemoteObject implements JogoForcaServerInterface {
 
     private final Map<String, JogoForcaClientInterface> clients = new ConcurrentHashMap<>();
+    private final List<String> ordemJogadores = new ArrayList<>(); // Fila de turnos
+    private int indiceJogadorAtual = 0;
 
     // Estado do Jogo da Forca
     private final String palavraSecreta = "SISTEMAS";
@@ -26,17 +28,27 @@ public class JogoForcaServerImpl extends UnicastRemoteObject implements JogoForc
             throw new RemoteException("Nome do jogador " + username + " já existe ou já está na sala");
         }
         clients.put(username, client);
+        ordemJogadores.add(username);
         System.out.println("O jogador " + username + " acessou a sala do jogo");
 
-        // Transmite a entrada do jogador e o estado atual do jogo
         broadcastMessage("ForcaSD", username + " entrou na sala!\n" + montarEstadoJogo());
     }
 
     @Override
     public synchronized void unregisterClient(String username) throws RemoteException {
         if (clients.remove(username) != null) {
+            int indexRemovido = ordemJogadores.indexOf(username);
+            ordemJogadores.remove(username);
+
+            // Ajusta o índice do turno caso o jogador que saiu estivesse jogando ou antes na fila
+            if (!ordemJogadores.isEmpty()) {
+                if (indexRemovido <= indiceJogadorAtual) {
+                    indiceJogadorAtual = indiceJogadorAtual % ordemJogadores.size();
+                }
+            }
+
             System.out.println("Jogador " + username + " saiu da sala");
-            broadcastMessage("ForcaSD", username + " saiu da sala");
+            broadcastMessage("ForcaSD", username + " saiu da sala.\n" + montarEstadoJogo());
         }
     }
 
@@ -47,10 +59,18 @@ public class JogoForcaServerImpl extends UnicastRemoteObject implements JogoForc
             return;
         }
 
+        // 1. Validação de Turno: Verifica se é a vez de quem enviou
+        String jogadorDaVez = obterJogadorDaVez();
+        if (!sender.equalsIgnoreCase(jogadorDaVez)) {
+            // Notifica apenas a tentativa ou ignora
+            broadcastMessage("ForcaSD", "⚠️ Apenas aguarde! É a vez de " + jogadorDaVez + " jogar.");
+            return;
+        }
+
         String palpite = message.trim().toUpperCase();
 
         if (palpite.length() != 1 || !Character.isLetter(palpite.charAt(0))) {
-            broadcastMessage("ForcaSD", "O palpite do jogador " + sender + " foi inválido. Digite apenas uma letra!");
+            broadcastMessage("ForcaSD", "Palpite inválido de " + sender + ". Digite apenas uma letra!");
             return;
         }
 
@@ -61,13 +81,15 @@ public class JogoForcaServerImpl extends UnicastRemoteObject implements JogoForc
             return;
         }
 
+        // 2. Processa a jogada
+        boolean acertou = false;
         if (palavraSecreta.indexOf(letra) >= 0) {
             letrasAdivinhadas.add(letra);
+            acertou = true;
             if (checarVitoria()) {
                 jogoFinalizado = true;
-                broadcastMessage("ForcaSD", "🎉 PARABÉNS! O jogador " + sender + " acertou a última letra '" + letra + "'!\nPalavra: " + palavraSecreta + "\nVOCÊS VENCERAM!");
-            } else {
-                broadcastMessage("ForcaSD", "👍 O jogador " + sender + " ACERTOU a letra '" + letra + "'!\n" + montarEstadoJogo());
+                broadcastMessage("ForcaSD", "🎉 PARABÉNS! O jogador " + sender + " acertou a última letra '" + letra + "'!\nPalavra: " + palavraSecreta + "\n" + sender.toUpperCase() + " VENCEU O JOGO!");
+                return;
             }
         } else {
             letrasErradas.add(letra);
@@ -75,10 +97,27 @@ public class JogoForcaServerImpl extends UnicastRemoteObject implements JogoForc
             if (vidasRestantes <= 0) {
                 jogoFinalizado = true;
                 broadcastMessage("ForcaSD", "☠️ GAME OVER! " + sender + " errou a letra '" + letra + "'. As vidas acabaram!\nA palavra era: " + palavraSecreta);
-            } else {
-                broadcastMessage("ForcaSD", "❌ O jogador " + sender + " ERROU a letra '" + letra + "'!\n" + montarEstadoJogo());
+                return;
             }
         }
+
+        // 3. Alterna o turno para o próximo jogador da lista
+        proximoTurno();
+
+        // 4. Notifica todos sobre o resultado e quem é o próximo a jogar
+        String msgResultado = acertou ? "👍 " + sender + " ACERTOU a letra '" + letra + "'!" : "❌ " + sender + " ERROU a letra '" + letra + "'!";
+        broadcastMessage("ForcaSD", msgResultado + "\n" + montarEstadoJogo());
+    }
+
+    private void proximoTurno() {
+        if (!ordemJogadores.isEmpty()) {
+            indiceJogadorAtual = (indiceJogadorAtual + 1) % ordemJogadores.size();
+        }
+    }
+
+    private String obterJogadorDaVez() {
+        if (ordemJogadores.isEmpty()) return "";
+        return ordemJogadores.get(indiceJogadorAtual);
     }
 
     private void broadcastMessage(String sender, String message) {
@@ -98,7 +137,8 @@ public class JogoForcaServerImpl extends UnicastRemoteObject implements JogoForc
         sb.append(desenharForca()).append("\n");
         sb.append("Palavra: ").append(montarPalavraOculta()).append("\n");
         sb.append("Letras tentadas: ").append(montarLetrasUsadas()).append("\n");
-        sb.append("Vidas restantes: ").append(vidasRestantes);
+        sb.append("Vidas do grupo: ").append(vidasRestantes).append("\n");
+        sb.append("👉 VEZ DE JOGAR: ").append(obterJogadorDaVez().toUpperCase());
         return sb.toString();
     }
 
